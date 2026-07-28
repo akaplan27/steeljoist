@@ -436,8 +436,9 @@ class Joist:
         else:
             expanded_web_index_info = self.WebMemberIndexInfo()
         
+        web_section_list = self.web_sections_all()
         for i, j in enumerate(expanded_web_index_info):
-            sec = self.web_sections_all()[i]
+            sec = web_section_list[i]
             secIndex = self.SectionInfo()[1].index(sec) + 1
             if x_coords[j[-1]-1] > x_coords[j[0]-1]:
                 beta = pi

@@ -41,7 +41,7 @@ class JoistRound:
 
     def __post_init__(self):       
         if self.A is None:
-            object.__setattr__(self, "A", pi/4*D**2)
+            object.__setattr__(self, "A", pi/4*self.D**2)
 
     @property
     def r(self):

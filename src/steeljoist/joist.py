@@ -241,7 +241,7 @@ class Joist:
             return self.web_sections.copy()
         elif 2*len(self.web_sections)-1 == number_of_web_members:
             web_sections = self.web_sections.copy()
-            web_sections.extend(reversed(self.web_sections.copy()[:-2]))
+            web_sections.extend(reversed(self.web_sections.copy()[:-1]))
             return web_sections
         elif 2*len(self.web_sections) <= number_of_web_members:
             web_sections = self.web_sections.copy()

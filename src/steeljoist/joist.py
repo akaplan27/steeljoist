@@ -14,7 +14,7 @@ class Joist:
         # Overall geometry
         self.span                   = attrs['span']
         self.depth                  = attrs['depth']
-        self.truss_type             = attrs['truss_type'].lower()  # e.g., 'warren' or 'modifiedWarren'
+        self.truss_type             = attrs['truss_type']  # e.g., 'Warren' or 'ModifiedWarren'
         self.top_chord_panel_point_lengths = attrs['top_chord_panel_point_lengths']
         self.bottom_chord_panel_point_lengths = attrs['bottom_chord_panel_point_lengths']
         if self.units == 'US':
@@ -220,16 +220,16 @@ class Joist:
 
     def numWebMembers(self):
         if self.bottom_chord_extension_length > 0:
-            if self.truss_type == 'warren':
+            if self.truss_type.lower() == 'warren':
                 return (len(self.bottom_chord_panel_point_x_coords()) - 1) * 2
-            elif self.truss_type == 'modifiedwarren':
+            elif self.truss_type.lower() == 'modifiedwarren':
                 return (len(self.bottom_chord_panel_point_x_coords()) - 2) * 3
             else:
                 raise ValueError('Truss type not implemented at this time')
         else:
-            if self.truss_type == 'warren':
+            if self.truss_type.lower() == 'warren':
                 return (len(self.bottom_chord_panel_point_x_coords()) + 1) * 2
-            elif self.truss_type == 'modifiedwarren':
+            elif self.truss_type.lower() == 'modifiedwarren':
                 return (len(self.bottom_chord_panel_point_x_coords())) * 3
             else:
                 raise ValueError('Truss type not implemented at this time')

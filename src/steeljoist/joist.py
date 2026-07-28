@@ -15,8 +15,8 @@ class Joist:
         self.span                   = attrs['span']
         self.depth                  = attrs['depth']
         self.truss_type             = attrs['truss_type']  # e.g., 'Warren' or 'ModifiedWarren'
-        self.top_chord_panel_point_lengths = attrs['top_chord_panel_point_lengths']
-        self.bottom_chord_panel_point_lengths = attrs['bottom_chord_panel_point_lengths']
+        self.top_chord_panel_lengths = attrs['top_chord_panel_lengths']
+        self.bottom_chord_panel_lengths = attrs['bottom_chord_panel_lengths']
         if self.units == 'US':
             self.bearing_length     = attrs.get('bearing_length', 4)
         else:
@@ -145,39 +145,39 @@ class Joist:
     # Attribut Parsing/Expanding Functions
     def top_chord_panel_point_x_coords(self):
         x_coords = [0]
-        if sum(self.top_chord_panel_point_lengths) == self.span:
-            for length in self.top_chord_panel_point_lengths:
+        if sum(self.top_chord_panel_lengths) == self.span:
+            for length in self.top_chord_panel_lengths:
                 x_coords.append(x_coords[-1]+length)
-        elif sum(self.top_chord_panel_point_lengths[0:-1]) <= self.span/2:
-            remaining_length = self.span - 2*sum(self.top_chord_panel_point_lengths[0:-1])
-            num_middle_panels = remaining_length/self.top_chord_panel_point_lengths[-1]
+        elif sum(self.top_chord_panel_lengths[0:-1]) <= self.span/2:
+            remaining_length = self.span - 2*sum(self.top_chord_panel_lengths[0:-1])
+            num_middle_panels = remaining_length/self.top_chord_panel_lengths[-1]
 
             if not num_middle_panels.is_integer():
-                raise ValueError('Invalid self.top_chord_panel_point_lengths: num_middle_panels not an integer')
+                raise ValueError('Invalid self.top_chord_panel_lengths: num_middle_panels not an integer')
             
-            for length in self.top_chord_panel_point_lengths:
+            for length in self.top_chord_panel_lengths:
                 x_coords.append(x_coords[-1]+length)
             for i in range(int(num_middle_panels)-2):
-                x_coords.append(x_coords[-1]+self.top_chord_panel_point_lengths[-1])
-            for length in reversed(self.top_chord_panel_point_lengths):
+                x_coords.append(x_coords[-1]+self.top_chord_panel_lengths[-1])
+            for length in reversed(self.top_chord_panel_lengths):
                 x_coords.append(x_coords[-1] + length)
         else:
-            raise ValueError('Invalid self.top_chord_panel_point_lengths')
+            raise ValueError('Invalid self.top_chord_panel_lengths')
         
         # Add node a center of bearing length at each end, if necessary. 
-        if self.bearing_length/2 < self.top_chord_panel_point_lengths[0]:
+        if self.bearing_length/2 < self.top_chord_panel_lengths[0]:
             x_coords.insert(1, self.bearing_length/2)
             x_coords.insert(-1, self.span-self.bearing_length/2)
         
-        elif self.bearing_length/2 == self.top_chord_panel_point_lengths[0]:
+        elif self.bearing_length/2 == self.top_chord_panel_lengths[0]:
             pass
         
-        elif (self.bearing_length/2 > self.top_chord_panel_point_lengths[0]) and (self.bearing_length/2 < self.top_chord_panel_point_lengths[0]+self.top_chord_panel_point_lengths[1]):
+        elif (self.bearing_length/2 > self.top_chord_panel_lengths[0]) and (self.bearing_length/2 < self.top_chord_panel_lengths[0]+self.top_chord_panel_lengths[1]):
             x_coords.insert(2, self.bearing_length/2)
             x_coords.insert(-3, self.span-self.bearing_length/2)
         
         else: 
-            raise ValueError('Invalid combination of bearing_length and top_chord_panel_point_lengths')
+            raise ValueError('Invalid combination of bearing_length and top_chord_panel_lengths')
 
         x_coords = [float(i) for i in x_coords]
 
@@ -186,25 +186,25 @@ class Joist:
     def bottom_chord_panel_point_x_coords(self):
         x_coords = [0]
         
-        if sum(self.bottom_chord_panel_point_lengths) == self.span:
-            for length in self.bottom_chord_panel_point_lengths:
+        if sum(self.bottom_chord_panel_lengths) == self.span:
+            for length in self.bottom_chord_panel_lengths:
                 x_coords.append(x_coords[-1]+length)
-        elif sum(self.bottom_chord_panel_point_lengths[0:-1]) <= self.span/2:         
-            remaining_length = self.span - 2*sum(self.bottom_chord_panel_point_lengths[0:-1])          
-            num_middle_panels = remaining_length/self.bottom_chord_panel_point_lengths[-1]
+        elif sum(self.bottom_chord_panel_lengths[0:-1]) <= self.span/2:         
+            remaining_length = self.span - 2*sum(self.bottom_chord_panel_lengths[0:-1])          
+            num_middle_panels = remaining_length/self.bottom_chord_panel_lengths[-1]
 
             if not num_middle_panels.is_integer():
-                raise ValueError('Invalid self.bottom_chord_panel_point_lengths: num_middle_panels not an integer')
+                raise ValueError('Invalid self.bottom_chord_panel_lengths: num_middle_panels not an integer')
             
-            for length in self.bottom_chord_panel_point_lengths[0:-1]:
+            for length in self.bottom_chord_panel_lengths[0:-1]:
                 x_coords.append(x_coords[-1]+length)
             for i in range(int(num_middle_panels)):
-                x_coords.append(x_coords[-1]+self.bottom_chord_panel_point_lengths[-1])
-            for length in reversed(self.bottom_chord_panel_point_lengths[0:-1]):
+                x_coords.append(x_coords[-1]+self.bottom_chord_panel_lengths[-1])
+            for length in reversed(self.bottom_chord_panel_lengths[0:-1]):
                 x_coords.append(x_coords[-1] + length)
 
         else:
-            raise ValueError('Invalid self.bottom_chord_panel_point_lengths')
+            raise ValueError('Invalid self.bottom_chord_panel_lengths')
 
         # Trim x_coords to remove values at 0 and span
         x_coords = x_coords[1:-1]
@@ -253,7 +253,7 @@ class Joist:
             raise ValueError(f'Web configuration must have a length less than or equal to half the number of web members')
    
     def isBearingLengthPanelPoint(self):
-        if self.top_chord_panel_point_lengths[0] == self.bearing_length/2:
+        if self.top_chord_panel_lengths[0] == self.bearing_length/2:
             return True
         else:
             return False
@@ -478,7 +478,7 @@ class Joist:
         num_nodes = len(self.TotalNodeInfo())
         support_info = np.zeros([num_nodes,6])
         support_info[:] = nan
-        if self.top_chord_panel_point_lengths[0] < self.bearing_length/2 :
+        if self.top_chord_panel_lengths[0] < self.bearing_length/2 :
             support_info[2] = [0, 0, 0, 0, nan, nan]
             support_info[len(self.top_chord_panel_point_x_coords())-1] = [nan, 0, 0, 0, nan, nan]   
         else:

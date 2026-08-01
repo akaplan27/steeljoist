@@ -71,26 +71,6 @@ class JoistRound:
 
 
     
-'''
-class JoistRound:
-    def __init__(self, D):
-        self.D = D
-
-    def MASTAN2_sect_info(self):
-        A = pi/4*self.D**2
-        I = pi/64*self.D**4
-        J = pi/32*self.D**4
-        Cw = 0
-        Z = 1/6*self.D**3
-        As = 0.9*A
-        return [A, I , I, J, Cw, Z, Z, As, As, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]        
-    
-    def in_plane_depth(self):
-        return self.D
-
-    def slenderness(self,L):
-        return L/(self.D/4)
-'''
 
 @dataclass(frozen=True)
 class JoistDoubleAngle:
@@ -174,61 +154,6 @@ class JoistDoubleAngle:
         else:
             print(f'  FAIL')
 
-'''
-class JoistDoubleAngle:
-    def __init__(self, b, t, s, d=None, A=None):       
-        self.b = b
-        self.t = t
-        self.s = s
-        if d is None:
-            self.d = b
-        else:
-            self.d = d
-        self._A = A
-
-    def y_bar(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.y_bar
-
-    def area(self):
-        if self._A is None:
-            obj = DoubleAngle(self.d, self.b, self.t, self.s)
-            return obj.A
-        else:
-            return self._A
-        
-    def Ix(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.Ix   
-        
-    def rx(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.rx    
-        
-    def ry(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.ry     
-        
-    def rz_single(self):
-        obj = Angle(self.d, self.b, self.t)
-        return obj.rz
-        
-    def MASTAN2_sect_info(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        A = obj.A
-        Ix = obj.Ix
-        Iy = obj.Iy
-        J = obj.J
-        Cw = 0
-        Zx = obj.Zx
-        Zy = obj.Zy
-        Asy = 2 * obj.d * obj.t
-        Asz = 2 * obj.b * obj.t
-        return [A, Ix , Iy, J, Cw, Zx, Zy, Asy, Asz, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
-
-    def inPlaneDepth(self):
-        return self.b
-'''
 
 class JoistCrimpedAngle:
     def __init__(self, b, t): 

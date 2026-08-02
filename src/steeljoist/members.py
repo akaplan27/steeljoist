@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 from functools import cached_property
-from math import nan, inf, pi, ceil, sin, cos, dist, sqrt, radians
+from math import inf, pi, sin, cos, radians
 from libdenavit.section import DoubleAngle, Angle
-from sectionproperties.pre.library import angle_section
 from shapely import Polygon
 from sectionproperties.pre import Geometry
 from sectionproperties.analysis import Section

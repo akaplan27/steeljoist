@@ -76,10 +76,10 @@ class JoistRound:
         return self.D/4
 
     def MASTAN2_sect_info(self):
-        A = pi/4*self.D**2
         return mastan2_sect_info(
-            A=A, Izz=pi/64*self.D**4, Iyy=pi/64*self.D**4, J=pi/32*self.D**4,
-            Cw=0, Zzz=1/6*self.D**3, Zyy=1/6*self.D**3, Ayy=0.9*A, Azz=0.9*A)
+            A=self.A, Izz=pi/64*self.D**4, Iyy=pi/64*self.D**4,
+            J=pi/32*self.D**4, Cw=0, Zzz=1/6*self.D**3, Zyy=1/6*self.D**3,
+            Ayy=0.9*self.A, Azz=0.9*self.A)
 
     def in_plane_depth(self):
         return self.D
@@ -133,7 +133,7 @@ class JoistDoubleAngle:
 
     def MASTAN2_sect_info(self):
         return mastan2_sect_info(
-            A=self._double_angle.A, Izz=self._double_angle.Ix,
+            A=self.A, Izz=self._double_angle.Ix,
             Iyy=self._double_angle.Iy, J=self._double_angle.J, Cw=0,
             Zzz=self._double_angle.Zx, Zyy=self._double_angle.Zy,
             Ayy=2 * self.d * self.t, Azz=2 * self.b * self.t)

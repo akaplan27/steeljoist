@@ -5,9 +5,9 @@ def parse_sji_joist_designation(designation):
     Parse a standard SJI joist designation.
 
     Examples:
-        "24K5"    -> ("24", "K", "5")
-        "30LH06"  -> ("30", "LH", "06")
-        "40DLH12" -> ("40", "DLH", "12")
+        "24K5"    -> (24, "K", 5)
+        "30LH06"  -> (30, "LH", 6)
+        "40DLH12" -> (40, "DLH", 12)
 
     Returns:
         tuple: (depth, series, designation_number)
@@ -25,13 +25,13 @@ def parse_sji_joist_designation(designation):
 
     depth, series, number = match.groups()
 
-    return depth, series, number
+    return int(depth), series, int(number)
 
 
 if __name__ == "__main__":
     # Example usage
     print(parse_sji_joist_designation("24K5"))
-    # Output: ('24', 'K', '5')
+    # Output: (24, 'K', 5)
 
     print(parse_sji_joist_designation("30LH06"))
-    # Output: ('30', 'LH', '06')
+    # Output: (30, 'LH', 6)

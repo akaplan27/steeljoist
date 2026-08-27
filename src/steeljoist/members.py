@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 from functools import cached_property
-from math import nan, inf, pi, ceil, sin, cos, dist, sqrt, radians
+from math import inf, pi, sin, cos, radians
 from libdenavit.section import DoubleAngle, Angle
-from sectionproperties.pre.library import angle_section
 from shapely import Polygon
 from sectionproperties.pre import Geometry
 from sectionproperties.analysis import Section
@@ -34,6 +33,35 @@ from sectionproperties.analysis import Section
 
 
 
+def mastan2_sect_info(*, A, Izz, Iyy, J, Cw, Zzz, Zyy, Ayy, Azz,
+                      yield_surface_P=1, yield_surface_Mz=1, yield_surface_My=1,
+                      is_symmetric=1, Ysc=0, Zsc=0,
+                      beta_y=0, beta_z=0, beta_w=0, phi=0, Iyz=0):
+    """Assemble the 20-column section row that MASTAN2 expects.
+
+    Column order is defined by ``libdenavit.MASTAN2.save_MASTAN2``:
+
+    ===  ===============================  ===  ===============================
+      1  Area                              11  Yield surface factor for Mz
+      2  Moment of inertia Izz             12  Yield surface factor for My
+      3  Moment of inertia Iyy             13  Is symmetric? 1 = yes, 0 = no
+      4  Torsion constant J                14  Shear center Ysc
+      5  Warping coefficient Cw            15  Shear center Zsc
+      6  Plastic section modulus Zzz       16  Wagner beta_y
+      7  Plastic section modulus Zyy       17  Wagner beta_z
+      8  Shear area Ayy                    18  Wagner beta_w
+      9  Shear area Azz                    19  Phi, radians
+     10  Yield surface factor for P        20  Product of inertia Iyz
+    ===  ===============================  ===  ===============================
+
+    MASTAN2's local z axis is the in-plane bending axis for a frame modelled in
+    the global x-y plane, so ``Izz`` takes the in-plane moment of inertia.
+    """
+    return [A, Izz, Iyy, J, Cw, Zzz, Zyy, Ayy, Azz,
+            yield_surface_P, yield_surface_Mz, yield_surface_My, is_symmetric,
+            Ysc, Zsc, beta_y, beta_z, beta_w, phi, Iyz]
+
+
 @dataclass(frozen=True)
 class JoistRound:
     D: float
@@ -48,20 +76,10 @@ class JoistRound:
         return self.D/4
 
     def MASTAN2_sect_info(self):
-        A = pi/4*self.D**2
-        return [
-            A,
-            pi/64*self.D**4,        # Ix
-            pi/64*self.D**4,        # Iy
-            pi/32*self.D**4,        # J
-            0,                      # Cw
-            1/6*self.D**3,          # Zx
-            1/6*self.D**3,          # Zy
-            0.9*A,                  # Asy
-            0.9*A,                  # Asz
-            1, 1, 1, 1,
-            0, 0, 0, 0, 0, 0, 0,
-        ]
+        return mastan2_sect_info(
+            A=self.A, Izz=pi/64*self.D**4, Iyy=pi/64*self.D**4,
+            J=pi/32*self.D**4, Cw=0, Zzz=1/6*self.D**3, Zyy=1/6*self.D**3,
+            Ayy=0.9*self.A, Azz=0.9*self.A)
 
     def in_plane_depth(self):
         return self.D
@@ -71,26 +89,6 @@ class JoistRound:
 
 
     
-'''
-class JoistRound:
-    def __init__(self, D):
-        self.D = D
-
-    def MASTAN2_sect_info(self):
-        A = pi/4*self.D**2
-        I = pi/64*self.D**4
-        J = pi/32*self.D**4
-        Cw = 0
-        Z = 1/6*self.D**3
-        As = 0.9*A
-        return [A, I , I, J, Cw, Z, Z, As, As, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]        
-    
-    def in_plane_depth(self):
-        return self.D
-
-    def slenderness(self,L):
-        return L/(self.D/4)
-'''
 
 @dataclass(frozen=True)
 class JoistDoubleAngle:
@@ -134,19 +132,11 @@ class JoistDoubleAngle:
         return Angle(self.d, self.b, self.t).rz
 
     def MASTAN2_sect_info(self):
-        return [
-            self._double_angle.A,
-            self._double_angle.Ix,
-            self._double_angle.Iy,
-            self._double_angle.J,
-            0,                      # Cw
-            self._double_angle.Zx,
-            self._double_angle.Zy,
-            2 * self.d * self.t,    # Asy
-            2 * self.b * self.t,    # Asz
-            1, 1, 1, 1,
-            0, 0, 0, 0, 0, 0, 0,
-        ]
+        return mastan2_sect_info(
+            A=self.A, Izz=self._double_angle.Ix,
+            Iyy=self._double_angle.Iy, J=self._double_angle.J, Cw=0,
+            Zzz=self._double_angle.Zx, Zyy=self._double_angle.Zy,
+            Ayy=2 * self.d * self.t, Azz=2 * self.b * self.t)
 
     def in_plane_depth(self):
         return self.b
@@ -174,61 +164,6 @@ class JoistDoubleAngle:
         else:
             print(f'  FAIL')
 
-'''
-class JoistDoubleAngle:
-    def __init__(self, b, t, s, d=None, A=None):       
-        self.b = b
-        self.t = t
-        self.s = s
-        if d is None:
-            self.d = b
-        else:
-            self.d = d
-        self._A = A
-
-    def y_bar(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.y_bar
-
-    def area(self):
-        if self._A is None:
-            obj = DoubleAngle(self.d, self.b, self.t, self.s)
-            return obj.A
-        else:
-            return self._A
-        
-    def Ix(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.Ix   
-        
-    def rx(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.rx    
-        
-    def ry(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        return obj.ry     
-        
-    def rz_single(self):
-        obj = Angle(self.d, self.b, self.t)
-        return obj.rz
-        
-    def MASTAN2_sect_info(self):
-        obj = DoubleAngle(self.d, self.b, self.t, self.s)
-        A = obj.A
-        Ix = obj.Ix
-        Iy = obj.Iy
-        J = obj.J
-        Cw = 0
-        Zx = obj.Zx
-        Zy = obj.Zy
-        Asy = 2 * obj.d * obj.t
-        Asz = 2 * obj.b * obj.t
-        return [A, Ix , Iy, J, Cw, Zx, Zy, Asy, Asz, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
-
-    def inPlaneDepth(self):
-        return self.b
-'''
 
 class JoistCrimpedAngle:
     def __init__(self, b, t): 
@@ -249,7 +184,8 @@ class JoistCrimpedAngle:
         # come up with equation for Zx and Zy then use sectionproperties to verify accuracy
         Asy = inf #inf A_sy
         Asz = inf # inf A_sx
-        return [A, Ixx , Iyy, J, Cw, Zx, Zy, Asy, Asz, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+        return mastan2_sect_info(A=A, Izz=Ixx, Iyy=Iyy, J=J, Cw=Cw,
+                                 Zzz=Zx, Zyy=Zy, Ayy=Asy, Azz=Asz)
 
     def in_plane_depth(self):
         return self.b * cos(45)
@@ -328,7 +264,8 @@ class ColdFormedChannel:
         Zy = 0 # @todo: crimped angle Zx and Zy
         Asy = inf #inf
         Asz = inf # inf
-        return [A, Ixx , Iyy, J, Cw, Zx, Zy, Asy, Asz, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+        return mastan2_sect_info(A=A, Izz=Ixx, Iyy=Iyy, J=J, Cw=Cw,
+                                 Zzz=Zx, Zyy=Zy, Ayy=Asy, Azz=Asz)
 
     def in_plane_depth(self):
         return self.w # @todo: is this correct?

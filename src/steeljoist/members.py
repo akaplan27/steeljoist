@@ -1,36 +1,11 @@
+import numpy as np
 from dataclasses import dataclass
 from typing import Optional
-from functools import cached_property
-from math import inf, pi, sin, cos, radians
+from math import inf, pi, sin, cos, sqrt
 from libdenavit.section import DoubleAngle, Angle
 from shapely import Polygon
 from sectionproperties.pre import Geometry
 from sectionproperties.analysis import Section
-
-
-# Testing for use of SectionProperties with Crimped Angle
-# https://www.desmos.com/calculator/mxb7esj14w
-# b = 1.25
-# t = 1/8
-
-# k = abs((0.375 * sqrt(2) * t) + (0.25 * sqrt(2) * b))
-
-# polyL = Polygon([(0, k), 
-#                 (b / sqrt(2), k - (b / sqrt(2))),
-#                 ((b - t) / sqrt(2), k - ((b + t) / sqrt(2))),
-#                 (0, k - (t * sqrt(2))), 
-#                 ((t - b) / sqrt(2), k - ((b + t) / sqrt(2))),
-#                 (-b / sqrt(2), k - (b / sqrt(2)))
-#                 ])
-
-# geom = Geometry(geom=polyL)
-# geom.create_mesh(mesh_sizes=20)
-# sec = Section(geometry=geom)
-# sec.calculate_geometric_properties()
-# sec.calculate_warping_properties()
-# sec.calculate_plastic_properties()
-# sec.display_results()
-
 
 
 def mastan2_sect_info(*, A, Izz, Iyy, J, Cw, Zzz, Zyy, Ayy, Azz,
@@ -63,23 +38,36 @@ def mastan2_sect_info(*, A, Izz, Iyy, J, Cw, Zzz, Zyy, Ayy, Azz,
 
 
 @dataclass(frozen=True)
-class JoistRound:
+class Round:
     D: float
+    
     A: Optional[float] = None
+    I: Optional[float] = None
+    J: Optional[float] = None
+    Z: Optional[float] = None
+    As: Optional[float] = None
+    r: Optional[float] = None
 
     def __post_init__(self):       
         if self.A is None:
             object.__setattr__(self, "A", pi/4*self.D**2)
-
-    @property
-    def r(self):
-        return self.D/4
+        if self.I is None:
+            object.__setattr__(self, "I", pi/64*self.D**4)
+        if self.J is None:
+            object.__setattr__(self, "J", pi/32*self.D**4)
+        if self.Z is None:
+            object.__setattr__(self, "Z", 1/6*self.D**3)
+        if self.As is None:
+            object.__setattr__(self, "As", 0.9*self.A)
+        if self.r is None:
+            object.__setattr__(self, "r", self.D/4)
+            
 
     def MASTAN2_sect_info(self):
         return mastan2_sect_info(
-            A=self.A, Izz=pi/64*self.D**4, Iyy=pi/64*self.D**4,
-            J=pi/32*self.D**4, Cw=0, Zzz=1/6*self.D**3, Zyy=1/6*self.D**3,
-            Ayy=0.9*self.A, Azz=0.9*self.A)
+            A=self.A, Izz=self.I, Iyy=self.I,
+            J=self.J, Cw=0, Zzz=self.Z, Zyy=self.Z,
+            Ayy=self.As, Azz=self.As)
 
     def in_plane_depth(self):
         return self.D
@@ -88,16 +76,28 @@ class JoistRound:
         return L/self.r
 
 
-    
-
 @dataclass(frozen=True)
-class JoistDoubleAngle:
+class HotRolledDoubleAngle:
     b: float
     t: float
     s: float
-    number_of_fillers: Optional[int] = 0
     d: Optional[float] = None
+    
     A: Optional[float] = None
+    y_bar: Optional[float] = None
+    Ix: Optional[float] = None
+    Iy: Optional[float] = None
+    J: Optional[float] = None
+    Zx: Optional[float] = None
+    Zy: Optional[float] = None
+    rx: Optional[float] = None
+    ry: Optional[float] = None
+    Asx: Optional[float] = None
+    Asy: Optional[float] = None
+    rz_single: Optional[float] = None
+    
+    number_of_fillers: Optional[int] = 0
+
 
     def __post_init__(self):
         if self.d is None:
@@ -106,167 +106,373 @@ class JoistDoubleAngle:
         obj = DoubleAngle(self.d, self.b, self.t, self.s)
         if self.A is None:
             object.__setattr__(self, "A", obj.A)
+        if self.y_bar is None:
+            object.__setattr__(self, "y_bar", obj.y_bar)
+        if self.Ix is None:
+            object.__setattr__(self, "Ix", obj.Ix) 
+        if self.Iy is None:
+            object.__setattr__(self, "Iy", obj.Iy)
+        if self.J is None:
+            object.__setattr__(self, "J", obj.J)
+        if self.Zx is None:
+            object.__setattr__(self, "Zx", obj.Zx)
+        if self.Zy is None:
+            object.__setattr__(self, "Zy", obj.Zy)
+        if self.rx is None:
+            object.__setattr__(self, "rx", obj.rx)
+        if self.ry is None:
+            object.__setattr__(self, "ry", obj.ry)
+        if self.Asx is None:
+            object.__setattr__(self, "Asx", 2*self.d*self.t)
+        if self.Asy is None:
+            object.__setattr__(self, "Asy", 2*self.b*self.t)
+            
+        obj = Angle(self.d, self.b, self.t)
+        if self.rz_single is None:
+            object.__setattr__(self, "rz_single", obj.rz)           
 
-    @cached_property
-    def _double_angle(self):
-        return DoubleAngle(self.d, self.b, self.t, self.s)
-
-    @property
-    def y_bar(self):
-        return self._double_angle.y_bar
-
-    @property
-    def Ix(self):
-        return self._double_angle.Ix
-
-    @property
-    def rx(self):
-        return self._double_angle.rx
-
-    @property
-    def ry(self):
-        return self._double_angle.ry
-
-    @property
-    def rz_single(self):
-        return Angle(self.d, self.b, self.t).rz
-
+            
     def MASTAN2_sect_info(self):
         return mastan2_sect_info(
-            A=self.A, Izz=self._double_angle.Ix,
-            Iyy=self._double_angle.Iy, J=self._double_angle.J, Cw=0,
-            Zzz=self._double_angle.Zx, Zyy=self._double_angle.Zy,
-            Ayy=2 * self.d * self.t, Azz=2 * self.b * self.t)
+            A=self.A, Izz=self.Ix, Iyy=self.Iy, 
+            J=self.J, Cw=0,
+            Zzz=self.Zx, Zyy=self.Zy,
+            Ayy=self.Asx, Azz=self.Asy)
 
     def in_plane_depth(self):
-        return self.b
+        return self.d
         
     def slenderness(self,L):
         l_over_rx = L/self.rx
         l_over_ry = L/self.ry
         l_over_rz = L/(self.number_of_fillers+1)/self.rz_single
         return max(l_over_rx,l_over_ry,l_over_rz)
-        
-    def check_strength_at_panel_point(self,basis,P,M,Fy):
-        fa = P/self.A
-        fb = M*(self.b-self.y_bar)/self.Ix
-
-        if basis == 'LRFD':
-            f_limit = 0.9*Fy
-        else:
-            raise ValueError(f'Unknown basis: {basis}')
-
-        print(f'Strength Evaluation at Panel Point:')
-        print(f'  fa = {fa/psi:,.0f} psi')
-        print(f'  fb = {fb/psi:,.0f} psi')
-        if (fa+fb) <= f_limit:
-            print(f'  PASS') 
-        else:
-            print(f'  FAIL')
 
 
-class JoistCrimpedAngle:
-    def __init__(self, b, t): 
-        # Assume always equal leg angle
-        self.b = b
-        self.d = b
-        self.t = t
+@dataclass(frozen=True)
+class HotRolledCrimpedAngle:
+    # Assume always equal leg angle
+    b: float
+    t: float
+
+    A: Optional[float] = None
+    Ix: Optional[float] = None
+    Iy: Optional[float] = None
+    J: Optional[float] = None
+    Zx: Optional[float] = None
+    Zy: Optional[float] = None
+    rx: Optional[float] = None
+    ry: Optional[float] = None
+    Asx: Optional[float] = None
+    Asy: Optional[float] = None
+
+    def __post_init__(self):
+        obj = Angle(self.d, self.b, self.t)
+        if self.A is None:
+            object.__setattr__(self, "A", obj.A)
+        if self.Ix is None:
+            object.__setattr__(self, "Ix", (obj.Ix + obj.Iy)/2 + obj.Ixy) 
+        if self.Iy is None:
+            object.__setattr__(self, "Iy", (obj.Ix + obj.Iy)/2 - obj.Ixy)
+        if self.J is None:
+            object.__setattr__(self, "J", obj.J)
+        if self.Zx is None:
+            object.__setattr__(self, "Zx", 1) # @todo - determine real value.
+        if self.Zy is None:
+            object.__setattr__(self, "Zy", 1) # @todo - determine real value.
+        if self.rx is None:
+            object.__setattr__(self, "rx", obj.rx)
+        if self.ry is None:
+            object.__setattr__(self, "ry", obj.ry)
+        if self.Asx is None:
+            object.__setattr__(self, "Asx", inf) # @todo - determine real value. 
+        if self.Asy is None:
+            object.__setattr__(self, "Asy", inf) # @todo - determine real value. 
 
     def MASTAN2_sect_info(self):
-        obj = Angle(self.b, self.d, self.t)
-        A = (obj.d + obj.b - obj.t)*obj.t
-        Ixx = (obj.Ix + obj.Iy)/2 + obj.Ixy
-        Iyy = (obj.Ix + obj.Iy)/2 - obj.Ixy
-        J = obj.J
-        Cw = 0
-        Zx = 0.5
-        Zy = 0.5 # @todo: crimped angle Zx and Zy
-        # come up with equation for Zx and Zy then use sectionproperties to verify accuracy
-        Asy = inf #inf A_sy
-        Asz = inf # inf A_sx
-        return mastan2_sect_info(A=A, Izz=Ixx, Iyy=Iyy, J=J, Cw=Cw,
-                                 Zzz=Zx, Zyy=Zy, Ayy=Asy, Azz=Asz)
+        return mastan2_sect_info(
+            A=self.A, Izz=self.Ix, Iyy=self.Iy, 
+            J=self.J, Cw=0,
+            Zzz=self.Zx, Zyy=self.Zy,
+            Ayy=self.Asx, Azz=self.Asy)
 
     def in_plane_depth(self):
-        return self.b * cos(45)
+        return self.b * cos(45) # @todo - determine real value.
 
     def slenderness(self,L):
-        return L/self.rz
+        return L/self.rx
 
-    @property
-    def A(self):
-        obj = Angle(self.b, self.d, self.t)
-        return obj.A  
 
-    @property
-    def rx(self):
-        obj = Angle(self.b, self.d, self.t)
-        return obj.rx 
+@dataclass(frozen=True)
+class ColdFormedAngle:
+    b: float
+    t: float
+    ri: float
+    
+    A: Optional[float] = None
+    x_bar: Optional[float] = None
+    y_bar: Optional[float] = None
+    Ix: Optional[float] = None
+    Iy: Optional[float] = None
+    Iz: Optional[float] = None
+    J: Optional[float] = None
+    Cw: Optional[float] = None
+    Zx: Optional[float] = None
+    Zy: Optional[float] = None
+    rx: Optional[float] = None
+    ry: Optional[float] = None
+    rz: Optional[float] = None
+    Asx: Optional[float] = None
+    Asy: Optional[float] = None
+
+    num_facets: Optional[int] = None
+
+    
+    def __post_init__(self):
         
-    @property
-    def ry(self):
-        obj = Angle(self.b, self.d, self.t)
-        return obj.ry         
-
-    @property
-    def rz(self):
-        obj = Angle(self.b, self.d, self.t)
-        return obj.rz    
-
-class ColdFormedChannel:
-    # https://www.desmos.com/calculator/9dkjawcosb
-    def __init__(self, w, h, t, ri, n=10):
-        self.w = w
-        self.h = h
-        self.t = t
-        self.ri = ri
-        self.ro = ri + t
-        self.n = n
-
-    def MASTAN2_sect_info(self):
-        leftInner  = []
-        leftOuter  = []
-        rightInner = []
-        rightOuter = []
-        for a in range(self.n)[1:]:
-            leftInner.append((-0.5 * self.w + self.t + self.ri * (1 - cos(radians(90 * a / self.n))), -self.h + self.ro - (self.ri * sin(radians(90 * a / self.n)))))
-            rightInner.append((0.5 * self.w - self.t - self.ri * (1 - cos(radians(90 * (self.n-a) / self.n))), -self.h + self.ro - self.ri * sin(radians(90 * (self.n-a) / self.n))))
-            rightOuter.append((0.5 * self.w - self.ro * (1 - cos(radians(90 * a / self.n))), -self.h + self.ro * (1 - sin(radians(90 * a / self.n)))))
-            leftOuter.append((-0.5 * self.w + self.ro * (1 - cos(radians(90 * (self.n-a) / self.n))), -self.h + self.ro * (1-sin(radians(90 * (self.n-a) / self.n)))))
-
-        polyU = Polygon([(-self.w / 2, 0),
-                 (self.t - 0.5 * self.w, 0),
-                 (self.t - 0.5 * self.w, self.ro - self.h)] +  
-                 leftInner +
-                 [(0.5 * self.w - self.ro, self.t - self.h)] +
-                 rightInner +
-                 [(0.5 * self.w - self.t, 0),
-                 (0.5 * self.w, 0),
-                 (0.5 * self.w, self.ro - self.h)] +
-                 rightOuter +                
-                 [(self.ro - 0.5 * self.w, -self.h)] +
-                 leftOuter)
-        geom = Geometry(geom=polyU)
-        # geom.plot_geometry()
-        geom.create_mesh(mesh_sizes=20)
+        object.__setattr__(self, "ro", self.ri+self.t)
+        
+        if self.num_facets is None:
+            object.__setattr__(self, "num_facets", 20)
+        
+        geom = Geometry(geom=Polygon(self.cross_section_points()))
+        #geom.plot_geometry()
+        geom.create_mesh(mesh_sizes=0.01*(self.t)**2)
         sec = Section(geometry=geom)
+        #sec.plot_mesh()
         sec.calculate_geometric_properties()
         sec.calculate_warping_properties()
         sec.calculate_plastic_properties()
-        # sec.display_results()
+        #sec.display_results()
+    
+        if self.A is None:
+            object.__setattr__(self, "A", float(sec.get_area()))
+        if self.Ix is None:
+            object.__setattr__(self, "x_bar", float(sec.get_c()[0]))
+        if self.Iy is None:
+            object.__setattr__(self, "y_bar", float(sec.get_c()[1]))
+        if self.Ix is None:
+            object.__setattr__(self, "Ix", float(sec.get_ic()[0]))
+        if self.Iy is None:
+            object.__setattr__(self, "Iy", float(sec.get_ic()[1]))
+        if self.Iz is None:
+            object.__setattr__(self, "Iz", float(sec.get_ip()[1]))
+        if self.J is None:
+            object.__setattr__(self, "J", float(sec.get_j()))
+        if self.Cw is None:
+            object.__setattr__(self, "Cw", float(sec.get_gamma()))
+        if self.Zx is None:
+            object.__setattr__(self, "Zx", float(sec.get_s()[0]))
+        if self.Zy is None:
+            object.__setattr__(self, "Zy", float(sec.get_s()[1]))
+        if self.rx is None:
+            object.__setattr__(self, "rx", sqrt(self.Ix/self.A)) 
+        if self.ry is None:
+            object.__setattr__(self, "ry", sqrt(self.Iy/self.A))
+        if self.rz is None:
+            object.__setattr__(self, "rz", sqrt(self.Iz/self.A))           
+        if self.Asx is None:
+            object.__setattr__(self, "Asx", float(sec.get_as()[0]))
+        if self.Asy is None:
+            object.__setattr__(self, "Asy", float(sec.get_as()[1]))
+
+
+    def cross_section_points(self):
+        angles = np.linspace(0,pi/2,self.num_facets+1)
+        pts = []
+        pts.append((0, -self.b))
+        for angle in angles:
+            xo = self.ro
+            yo = -self.ro
+            pts.append((xo + self.ro * cos(pi-angle), yo + self.ro * sin(pi-angle)))
+        pts.append((self.b, 0))
+        pts.append((self.b, -self.t))
+        for angle in angles:
+            xo = self.ro
+            yo = -self.ro
+            pts.append((xo + self.ri * cos(angle+pi/2), yo + self.ri * sin(angle+pi/2)))
+        pts.append((self.t, -self.b))
         
-        A = float(sec.get_area())
-        Ixx = float(sec.get_ig()[0])
-        Iyy = float(sec.get_ig()[1])
-        J = float(sec.get_j())
-        Cw = float(sec.get_gamma()) # gamma
-        Zx = 0 # determine by calculating for crimped angle then comparing which is correct
-        Zy = 0 # @todo: crimped angle Zx and Zy
-        Asy = inf #inf
-        Asz = inf # inf
-        return mastan2_sect_info(A=A, Izz=Ixx, Iyy=Iyy, J=J, Cw=Cw,
-                                 Zzz=Zx, Zyy=Zy, Ayy=Asy, Azz=Asz)
+        return pts
+    
+    def MASTAN2_sect_info(self):
+        return mastan2_sect_info(
+            A=self.A, Izz=self.Ix, Iyy=self.Iy,
+            J=self.J, Cw=self.Cw,
+            Zzz=self.Zx, Zyy=self.Zy, Ayy=self.Asy, Azz=self.Asz)
 
     def in_plane_depth(self):
-        return self.w # @todo: is this correct?
+        return self.h
+
+
+@dataclass(frozen=True)
+class ColdFormedDoubleAngle:
+    # Assume always equal leg angle
+    b: float
+    t: float
+    ri: float
+    s: float
+    
+    A: Optional[float] = None
+    y_bar: Optional[float] = None
+    Ix: Optional[float] = None
+    Iy: Optional[float] = None
+    Iz: Optional[float] = None
+    J: Optional[float] = None
+    Cw: Optional[float] = None
+    Zx: Optional[float] = None
+    Zy: Optional[float] = None
+    rx: Optional[float] = None
+    ry: Optional[float] = None
+    Asx: Optional[float] = None
+    Asy: Optional[float] = None
+    rz_single: Optional[float] = None
+
+    num_facets: Optional[int] = None
+
+    
+    def __post_init__(self):
+        
+        object.__setattr__(self, "ro", self.ri+self.t)
+        
+        if self.num_facets is None:
+            object.__setattr__(self, "num_facets", 20)
+        
+        single_angle = ColdFormedAngle(self.b, self.t, self.ri)
+        if self.A is None:
+            object.__setattr__(self, "A", 2*single_angle.A)
+        if self.y_bar is None:
+            object.__setattr__(self, "y_bar", single_angle.y_bar)
+        if self.Ix is None:
+            object.__setattr__(self, "Ix", 0) # @todo - determine real value.
+        if self.Iy is None:
+            object.__setattr__(self, "Iy", 0) # @todo - determine real value.
+        if self.J is None:
+            object.__setattr__(self, "J", 2*single_angle.J)
+        if self.Cw is None:
+            object.__setattr__(self, "Cw", 2*single_angle.Cw)
+        if self.Zx is None:
+            object.__setattr__(self, "Zx", 1) # @todo - determine real value.
+        if self.Zy is None:
+            object.__setattr__(self, "Zy", 1) # @todo - determine real value.
+        if self.rx is None:
+            object.__setattr__(self, "rx", sqrt(self.Ix/self.A))
+        if self.ry is None:
+            object.__setattr__(self, "ry", sqrt(self.Ix/self.A))
+        if self.Asx is None:
+            object.__setattr__(self, "Asx", 2*single_angle.Asx)
+        if self.Asy is None:
+            object.__setattr__(self, "Asy", 2*single_angle.Asx)
+        if self.rz_single is None:
+            object.__setattr__(self, "rz_single", single_angle.rz)
+    
+    
+    def MASTAN2_sect_info(self):
+        return mastan2_sect_info(
+            A=self.A, Izz=self.Ix, Iyy=self.Iy,
+            J=self.J, Cw=self.Cw,
+            Zzz=self.Zx, Zyy=self.Zy, Ayy=self.Asy, Azz=self.Asx)
+
+    def in_plane_depth(self):
+        return self.b
+
+
+@dataclass(frozen=True)
+class ColdFormedChannel:
+    w: float
+    h: float
+    t: float
+    ri: float
+    
+    A: Optional[float] = None
+    Ix: Optional[float] = None
+    Iy: Optional[float] = None
+    J: Optional[float] = None
+    Cw: Optional[float] = None
+    Zx: Optional[float] = None
+    Zy: Optional[float] = None
+    rx: Optional[float] = None
+    ry: Optional[float] = None
+    Asx: Optional[float] = None
+    Asy: Optional[float] = None
+
+    num_facets: Optional[int] = None
+
+    
+    def __post_init__(self):
+        
+        object.__setattr__(self, "ro", self.ri+self.t)
+        
+        if self.num_facets is None:
+            object.__setattr__(self, "num_facets", 20)
+
+        geom = Geometry(geom=Polygon(self.cross_section_points()))
+        #geom.plot_geometry()
+        geom.create_mesh(mesh_sizes=0.01*(self.t)**2)
+        sec = Section(geometry=geom)
+        #sec.plot_mesh()
+        sec.calculate_geometric_properties()
+        sec.calculate_warping_properties()
+        sec.calculate_plastic_properties()
+        #sec.display_results()
+        
+        if self.A is None:
+            object.__setattr__(self, "A", float(sec.get_area()))
+        if self.Ix is None:
+            object.__setattr__(self, "Ix", float(sec.get_ic()[0]))
+        if self.Iy is None:
+            object.__setattr__(self, "Iy", float(sec.get_ic()[1]))
+        if self.J is None:
+            object.__setattr__(self, "J", float(sec.get_j()))
+        if self.Cw is None:
+            object.__setattr__(self, "Cw", float(sec.get_gamma()))
+        if self.Zx is None:
+            object.__setattr__(self, "Zx", float(sec.get_s()[0]))
+        if self.Zy is None:
+            object.__setattr__(self, "Zy", float(sec.get_s()[1]))
+        if self.rx is None:
+            object.__setattr__(self, "rx", sqrt(self.Ix/self.A)) 
+        if self.ry is None:
+            object.__setattr__(self, "ry", sqrt(self.Iy/self.A))           
+        if self.Asx is None:
+            object.__setattr__(self, "Asx", float(sec.get_as()[0]))
+        if self.Asy is None:
+            object.__setattr__(self, "Asy", float(sec.get_as()[1]))
+
+
+    def cross_section_points(self):
+        angles = np.linspace(0,pi/2,self.num_facets+1)
+        pts = []
+        pts.append((-self.w / 2, 0))
+        pts.append((-self.w / 2 + self.t, 0))
+        for angle in angles:
+            xo = -self.w / 2 + self.ro
+            yo = -self.h + self.ro
+            pts.append((xo + self.ri * cos(angle+pi), yo + self.ri * sin(angle+pi)))
+        for angle in angles:
+            xo = self.w / 2 - self.ro
+            yo = -self.h + self.ro
+            pts.append((xo + self.ri * cos(angle+3*pi/2), yo + self.ri * sin(angle+3*pi/2)))
+        pts.append((self.w / 2 - self.t, 0))
+        pts.append((self.w / 2, 0))
+        for angle in angles:
+            xo = self.w / 2 - self.ro
+            yo = -self.h + self.ro
+            pts.append((xo + self.ro * cos(-angle), yo + self.ro * sin(-angle)))
+        for angle in angles:
+            xo = -self.w / 2 + self.ro
+            yo = -self.h + self.ro
+            pts.append((xo + self.ro * cos(-angle-pi/2), yo + self.ro * sin(angle-pi/2)))
+        
+        return pts
+    
+    def MASTAN2_sect_info(self):
+        return mastan2_sect_info(
+            A=self.A, Izz=self.Ix, Iyy=self.Iy,
+            J=self.J, Cw=self.Cw,
+            Zzz=self.Zx, Zyy=self.Zy, Ayy=self.Asy, Azz=self.Asz)
+
+    def in_plane_depth(self):
+        return self.h
+
 

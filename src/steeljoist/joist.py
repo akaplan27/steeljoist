@@ -523,15 +523,23 @@ class Joist:
 
     # Plotting Functions
     def plot_joist(self):
-        # @todo - add option to display section name
-        node_coords = [i[0:2] for i in self.TotalNodeInfo()]
+        node_coords = [i[0:2] for i in self.TopNodeInfo() + self.BotNodeInfo()]
+        tc_x = self.top_chord_panel_point_x_coords()
+        bc_x = self.bottom_chord_panel_point_x_coords()
+        de = self.effective_depth()
+
+        # Plot top chord
+        plt.plot(tc_x, [0]*len(tc_x), 'k')
+        plt.plot(bc_x, [-de]*len(bc_x), 'k')
         for i in node_coords:
-            plt.plot(i[0], i[1], 'o')
-        for i in self.TotalEleInfo():
-            plt.plot([node_coords[i[0]-1][0], node_coords[i[1]-1][0]], [node_coords[i[0]-1][1], node_coords[i[1]-1][1]], 'b')
+            plt.plot(i[0], i[1], 'ko')
+
+        # Plot web members
         for i in self.WebMemberIndexInfo():
-            plt.plot([node_coords[i[0]-1][0], node_coords[i[1]-1][0]], [node_coords[i[0]-1][1], node_coords[i[1]-1][1]], 'b')
-        for i in self.WebEleInfo()[0]:
-            plt.plot(i[0],i[1], 'o')
+            plt.plot([node_coords[i[0]-1][0], node_coords[i[1]-1][0]], [node_coords[i[0]-1][1], node_coords[i[1]-1][1]], 'k')
+            plt.text((node_coords[i[0]-1][0]+node_coords[i[1]-1][0])/2, (node_coords[i[0]-1][1]+node_coords[i[1]-1][1])/2, 
+                     self.web_sections_all()[self.WebMemberIndexInfo().index(i)], fontsize=8, ha='center', va='center'
+            )
+
         plt.ylim([-self.depth*1.1, 0.5])
         plt.show()

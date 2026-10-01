@@ -256,10 +256,10 @@ class ColdFormedAngle:
     
         if self.A is None:
             object.__setattr__(self, "A", float(sec.get_area()))
-        if self.Ix is None:
-            object.__setattr__(self, "x_bar", float(sec.get_c()[0]))
-        if self.Iy is None:
-            object.__setattr__(self, "y_bar", float(sec.get_c()[1]))
+        if self.x_bar is None:
+            object.__setattr__(self, "x_bar", float(-sec.get_c()[0]))
+        if self.y_bar is None:
+            object.__setattr__(self, "y_bar", float(-sec.get_c()[1]))
         if self.Ix is None:
             object.__setattr__(self, "Ix", float(sec.get_ic()[0]))
         if self.Iy is None:

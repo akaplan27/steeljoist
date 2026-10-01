@@ -18,9 +18,11 @@ class Joist:
         self.top_chord_panel_lengths = attrs['top_chord_panel_lengths']
         self.bottom_chord_panel_lengths = attrs['bottom_chord_panel_lengths']
         if self.units == 'US':
-            self.bearing_length     = attrs.get('bearing_length', 4)
+            self.support_location   = attrs.get('support_location',2)
         else:
-            self.bearing_length     = attrs['bearing_length']
+            self.support_location   = attrs['support_location']
+        self.top_chord_extension_length_left = attrs.get('top_chord_extension_length_left', 0)
+        self.top_chord_extension_length_right = attrs.get('top_chord_extension_length_right', 0)
         
         # Member information
         self.sections               = attrs['sections']  # Dictionary of sections
@@ -143,7 +145,7 @@ class Joist:
         return self.depth - self.top_chord.y_bar - self.bottom_chord.y_bar
 
     # Attribut Parsing/Expanding Functions
-    def top_chord_panel_point_x_coords(self):
+    def top_chord_panel_point_x_coords(self,include_ends=True,include_supports=True):
         x_coords = [0]
         if sum(self.top_chord_panel_lengths) == self.span:
             for length in self.top_chord_panel_lengths:
@@ -164,21 +166,32 @@ class Joist:
         else:
             raise ValueError('Invalid self.top_chord_panel_lengths')
         
-        # Add node a center of bearing length at each end, if necessary. 
-        if self.bearing_length/2 < self.top_chord_panel_lengths[0]:
-            x_coords.insert(1, self.bearing_length/2)
-            x_coords.insert(-1, self.span-self.bearing_length/2)
+        # Adjust for top chord extensions
+        x_coords[0] -= self.top_chord_extension_length_left
+        x_coords[-1] += self.top_chord_extension_length_right
         
-        elif self.bearing_length/2 == self.top_chord_panel_lengths[0]:
-            pass
-        
-        elif (self.bearing_length/2 > self.top_chord_panel_lengths[0]) and (self.bearing_length/2 < self.top_chord_panel_lengths[0]+self.top_chord_panel_lengths[1]):
-            x_coords.insert(2, self.bearing_length/2)
-            x_coords.insert(-3, self.span-self.bearing_length/2)
-        
-        else: 
-            raise ValueError('Invalid combination of bearing_length and top_chord_panel_lengths')
+        # Add support nodes if wanted
+        if include_supports:
+            # Add node at supports at each end, if necessary and requested. 
+            if self.support_location < self.top_chord_panel_lengths[0]:
+                x_coords.insert(1, self.support_location)
+                x_coords.insert(-1, self.span-self.support_location)
+            
+            elif self.support_location == self.top_chord_panel_lengths[0]:
+                pass
+            
+            elif (self.support_location > self.top_chord_panel_lengths[0]) and (self.support_location < self.top_chord_panel_lengths[0]+self.top_chord_panel_lengths[1]):
+                x_coords.insert(2, self.support_location)
+                x_coords.insert(-2, self.span-self.support_location)
+            
+            else: 
+                raise ValueError('Invalid combination of support_location and top_chord_panel_lengths')
 
+        # Remove end nodes if not wanted
+        if not include_ends:
+            x_coords = x_coords[1:-1]
+
+        # Make sure all the entrys are floats
         x_coords = [float(i) for i in x_coords]
 
         return x_coords               
@@ -252,22 +265,19 @@ class Joist:
         else:
             raise ValueError(f'Web configuration must have a length less than or equal to half the number of web members')
    
-    def isBearingLengthPanelPoint(self):
-        if self.top_chord_panel_lengths[0] == self.bearing_length/2:
-            return True
-        else:
-            return False
+    def is_support_at_panel_point(self):
+        return self.support_location == self.top_chord_panel_lengths[0]
 
     # Strength Calculation Helpers
     def top_chord_shear_check_locations(self):
         tc_panel_point_x_coords = self.top_chord_panel_point_x_coords()
         if self.truss_type.lower() == 'warren':
-            if self.isBearingLengthPanelPoint():
+            if self.is_support_at_panel_point():
                 Lss = tc_panel_point_x_coords[3:-3]
             else:
                 Lss = tc_panel_point_x_coords[4:-4]
         elif self.truss_type.lower() == 'modifiedwarren':
-            if self.isBearingLengthPanelPoint():
+            if self.is_support_at_panel_point():
                 Lss = tc_panel_point_x_coords[3:-3:2]
             else:
                 Lss = tc_panel_point_x_coords[4:-4:2]
@@ -365,7 +375,7 @@ class Joist:
 
     def WebMemberIndexInfo(self):
         if self.truss_type.lower() == 'warren':
-            if self.isBearingLengthPanelPoint():
+            if self.is_support_at_panel_point():
                 topNode = self.TopIndexInfo()[:-1]
             else:
                 topNode = self.TopIndexInfo()[1:-2]
@@ -384,7 +394,7 @@ class Joist:
             webNodeIndices.append([topNode[-1], botNode[-1]])
 
         elif self.truss_type.lower() == 'modifiedwarren':
-            if self.isBearingLengthPanelPoint():
+            if self.is_support_at_panel_point():
                 topNode = self.TopIndexInfo()[1:-1]
             else:
                 topNode = self.TopIndexInfo()[2:-2]
@@ -473,18 +483,6 @@ class Joist:
             sect_info.append(section.MASTAN2_sect_info())
             sect_name.append(name)
         return sect_info, sect_name
-
-    def SupportInfo(self):
-        num_nodes = len(self.TotalNodeInfo())
-        support_info = np.zeros([num_nodes,6])
-        support_info[:] = nan
-        if self.top_chord_panel_lengths[0] < self.bearing_length/2 :
-            support_info[2] = [0, 0, 0, 0, nan, nan]
-            support_info[len(self.top_chord_panel_point_x_coords())-1] = [nan, 0, 0, 0, nan, nan]   
-        else:
-            support_info[1] = [0, 0, 0, 0, nan, nan]
-            support_info[len(self.top_chord_panel_point_x_coords())-2] = [nan, 0, 0, 0, nan, nan]     
-        return support_info
    
     def LateralLoad(self, sec):
         h = self.sections[sec].in_plane_depth()
@@ -495,6 +493,16 @@ class Joist:
         if model_title is None:
             model_title = self.joist_name
         
+        # Support Information
+        num_nodes = len(self.TotalNodeInfo())
+        support_info = np.zeros([num_nodes,6])
+        support_info[:] = nan
+        if self.top_chord_panel_lengths[0] <= self.support_location:
+            support_info[2] = [0, 0, 0, 0, nan, nan]
+            support_info[len(self.top_chord_panel_point_x_coords())-1] = [nan, 0, 0, 0, nan, nan]   
+        else:
+            support_info[1] = [0, 0, 0, 0, nan, nan]
+            support_info[len(self.top_chord_panel_point_x_coords())-2] = [nan, 0, 0, 0, nan, nan]
         
         # Material Information
         mat_info = [[self.E, self.v, self.top_chord_Fy, self.unit_weight],
@@ -514,7 +522,7 @@ class Joist:
         save_MASTAN2(model_title=model_title, 
                      node_info=np.array(self.TotalNodeInfo()), 
                      elem_info=self.TotalEleInfo(),
-                     support_info=self.SupportInfo(), 
+                     support_info=support_info, 
                      uniload_info=self.TotalUniloadInfo(), 
                      sect_info=self.SectionInfo()[0],
                      sect_name=self.SectionInfo()[1], 

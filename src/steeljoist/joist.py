@@ -493,16 +493,23 @@ class Joist:
         if model_title is None:
             model_title = self.joist_name
         
+        # Model information
+        node_info = self.TotalNodeInfo()
+        elem_info = self.TotalEleInfo()
+        uniload_info = self.TotalUniloadInfo()
+        sect_info, sect_name = self.SectionInfo()
+        num_top_chord_nodes = len(self.top_chord_panel_point_x_coords())
+
         # Support Information
-        num_nodes = len(self.TotalNodeInfo())
+        num_nodes = len(node_info)
         support_info = np.zeros([num_nodes,6])
         support_info[:] = nan
         if self.top_chord_panel_lengths[0] <= self.support_location:
             support_info[2] = [0, 0, 0, 0, nan, nan]
-            support_info[len(self.top_chord_panel_point_x_coords())-1] = [nan, 0, 0, 0, nan, nan]   
+            support_info[num_top_chord_nodes-1] = [nan, 0, 0, 0, nan, nan]   
         else:
             support_info[1] = [0, 0, 0, 0, nan, nan]
-            support_info[len(self.top_chord_panel_point_x_coords())-2] = [nan, 0, 0, 0, nan, nan]
+            support_info[num_top_chord_nodes-2] = [nan, 0, 0, 0, nan, nan]
         
         # Material Information
         mat_info = [[self.E, self.v, self.top_chord_Fy, self.unit_weight],
@@ -520,12 +527,12 @@ class Joist:
 
         # Save Joist        
         save_MASTAN2(model_title=model_title, 
-                     node_info=np.array(self.TotalNodeInfo()), 
-                     elem_info=self.TotalEleInfo(),
+                     node_info=np.array(node_info), 
+                     elem_info=elem_info,
                      support_info=support_info, 
-                     uniload_info=self.TotalUniloadInfo(), 
-                     sect_info=self.SectionInfo()[0],
-                     sect_name=self.SectionInfo()[1], 
+                     uniload_info=uniload_info, 
+                     sect_info=sect_info,
+                     sect_name=sect_name, 
                      mat_info=mat_info,
                      mat_name=mat_name)
 
